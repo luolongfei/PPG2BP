@@ -59,7 +59,7 @@ function system_log($content, array $response = [], $fileName = '')
 
         fclose($handle);
     } catch (\Exception $e) {
-        // DO NOTHING
+        // do nothing
     }
 }
 
@@ -86,6 +86,16 @@ class HeTang
     protected static $multiClient;
 
     /**
+     * @var string 血压类型 ABP or NBP
+     */
+    public $BPType = 'NBP';
+
+    /**
+     * @var int 最大请求并发数
+     */
+    public $size = 500;
+
+    /**
      * @throws ErrorException
      * @throws \Exception
      */
@@ -105,13 +115,12 @@ class HeTang
         }
         $numerics = $matches['numerics'];
 
-        $errorPages = [];
         $existBP = [];
         $multiClient->success(function ($instance) use (&$existBP) {
             $rawResponse = $instance->rawResponse;
             $url = $instance->url;
             $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)n\.hea/i', $url, $m) ? $m['numeric_name'] : '';
-            if (stripos($rawResponse, 'ABP') !== false) {
+            if (stripos($rawResponse, $this->BPType) !== false) {
                 $existBP[] = $numericName; // 保存去掉n后的名称
                 system_log(sprintf('发现含有血压数据的画面：%s', $url));
             } else {
@@ -120,17 +129,13 @@ class HeTang
 
             return true;
         });
-        $multiClient->error(function ($instance) use (&$errorPages) {
+        $multiClient->error(function ($instance) {
             system_log(sprintf('multiClient查询是否存在血压数据 curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
-            $errorPages[] = [
-                'url' => $instance->url,
-                'error_reason' => sprintf('%s#%s', $instance->errorCode, $instance->errorMessage)
-            ];
 
             return false;
         });
 
-        $size = 500; // 同一批次最多同时发起的请求个数
+        $size = $this->size; // 同一批次最多同时发起的请求个数
         $numericChunks = array_chunk($numerics, $size);
         foreach ($numericChunks as $numericChunk) {
             foreach ($numericChunk as $numeric) {
@@ -150,7 +155,7 @@ class HeTang
                 '完成筛选numerics，共%d位病人，有%d位病人存在血压数据，共耗时%s分钟',
                 count($numerics),
                 count($existBP),
-                floor((time() - $startTime) / 60)
+                self::formatTimeInterval($startTime, time())
             )
         );
 
@@ -170,32 +175,27 @@ class HeTang
         $multiClient2->success(function ($instance) use (&$result) {
             $rawResponse = $instance->rawResponse;
             $url = explode('?', $instance->url)[0];
-            $rootPath = preg_match(
+            $peopleUrl = preg_match(
                 '/(?P<rootPath>https?:\/\/physionet\.org\/physiobank\/database\/mimic3wdb\/matched\/p\d+\/p\d+\/)/i',
                 $url,
                 $r
             ) ? $r['rootPath'] : '';
-            $numericName = preg_match('/\?numericName=p\d+\/p\d+\/(?P<numericName>.*?)$/i', $instance->url, $n) ? $n['numericName'] : ''; // 含n，仅取名
-            $numericUrl = sprintf('%s%s.hea', $rootPath, $numericName);
+            $numericName = self::getQuery('numericName', $instance->url); // 含n，仅取名
+            $numericUrl = sprintf('%s%s.hea', $peopleUrl, $numericName);
+            $layoutNum = preg_match('/\/(?P<layoutNum>\d+)_layout\.hea/i', $url, $m) ? $m['layoutNum'] : '';
             if (stripos($rawResponse, 'PLETH') !== false) { // 存在ppg波形
-                $data = [
-                    'rootPath' => $rootPath,
-                    'layoutUrl' => $url,
-                    'numericUrl' => $numericUrl
+                $result[] = [
+                    'peopleUrl' => $peopleUrl,
+                    'layoutNum' => $layoutNum
                 ];
-                $result[] = $data;
                 system_log(sprintf('发现PPG数据：%s', $url));
                 system_log(sprintf("发现既有BP又有PPG数据的病人：\n%s\n%s\n", $url, $numericUrl), [], 'result');
             } else {
                 system_log(sprintf('未发现PPG数据：%s', $url));
             }
         });
-        $multiClient2->error(function ($instance) use (&$errorPages) {
+        $multiClient2->error(function ($instance) {
             system_log(sprintf('multiClient2获取layout画面 curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
-            $errorPages[] = [
-                'url' => $instance->url,
-                'error_reason' => sprintf('%s#%s', $instance->errorCode, $instance->errorMessage)
-            ];
 
             return false;
         });
@@ -216,12 +216,8 @@ class HeTang
 
             return true;
         });
-        $multiClient->error(function ($instance) use (&$errorPages) {
+        $multiClient->error(function ($instance) {
             system_log(sprintf('multiClient获取 layout url， curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
-            $errorPages[] = [
-                'url' => $instance->url,
-                'error_reason' => sprintf('%s#%s', $instance->errorCode, $instance->errorMessage)
-            ];
 
             return false;
         });
@@ -247,14 +243,122 @@ class HeTang
             system_log(sprintf('前%d个请求已完成', $size));
         }
 
-        system_log(sprintf('完成PPG数据的筛选，共耗时%s分钟', floor((time() - $startWaveformTime) / 60)));
+        system_log(sprintf('完成PPG数据的筛选，共耗时%s分钟', self::formatTimeInterval($startWaveformTime, time())));
         system_log(sprintf('同时存在血压与PPG数据的病人共%d位', count($result)));
-        system_log(sprintf('所有操作共耗时%s分钟', floor((time() - $startTime) / 60)));
+        system_log(sprintf('所有筛选操作共耗时%s分钟', self::formatTimeInterval($startTime, time())));
+
+        /**
+         * 由multiClient2发起下载数据动作
+         */
+        $multiClient2->setOpt(CURLOPT_ENCODING, ''); // 发送所有支持的编码类型
+        $multiClient2->setTimeout(0); // 下载的文件过大时会消耗过多的时间
+        $multiClient2->success(function ($instance) {
+            system_log(sprintf('成功下载文件：%s', $instance->url));
+
+            return true;
+        });
+        $multiClient2->error(function ($instance) {
+            system_log(sprintf('multiClient2下载dat文件失败，curl请求出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
+
+            return false;
+        });
+
+        /**
+         * 由multiClient访问病人画面，以取得需要下载的dat文件地址
+         */
+        $multiClient->success(function ($instance) use (&$multiClient2) {
+            $rawResponse = $instance->rawResponse;
+            $peopleUrl = explode('?', $instance->url)[0];
+            $layoutNum = self::getQuery('layoutNum', $instance->url);
+
+            // 匹配所有dat文件名
+            if (preg_match_all(sprintf('/href="(?P<datFile>%s_\d+\.dat)"/i', $layoutNum), $rawResponse, $d)) {
+                // 每个病人一个文件夹
+                $people = preg_match('/\/database\/mimic3wdb\/matched\/(?P<path>p\d+\/p\d+\/)/i', $peopleUrl, $p) ? $p['path'] : '';
+                $path = sprintf('%s/data/%s', ROOT_PATH, $people);
+                if (!is_dir($path)) {
+                    mkdir($path, 0777, true);
+                    chmod($path, 0777);
+                }
+
+                $datFiles = $d['datFile'];
+                foreach ($datFiles as $datFile) {
+                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $datFile), sprintf('%s%s', $path, $datFile));
+                }
+            } else {
+                system_log(sprintf('未匹配到任何dat文件名：%s', $peopleUrl));
+            }
+
+            return true;
+        });
+        $multiClient->error(function ($instance) {
+            system_log(sprintf('multiClient访问病人画面 curl请求出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
+
+            return false;
+        });
+
+        $downloadStartTime = time();
+        $resultChunks = array_chunk($result, $size);
+        foreach ($resultChunks as $resultChunk) {
+            foreach ($resultChunk as $item) {
+                $multiClient->addGet(
+                    sprintf(
+                        '%s?layoutNum=%s',
+                        $item['peopleUrl'],
+                        $item['layoutNum']
+                    )
+                );
+            }
+            $dts = time();
+            system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
+            $multiClient->start(); // Blocks until all items in the queue have been processed.
+            $multiClient2->start();
+            system_log(sprintf('前%d个请求已完成', $size));
+            system_log(sprintf('下载耗时：%s', self::formatTimeInterval($dts, time())));
+        }
+
+        system_log(sprintf('所有文件下载完成，下载过程共耗时%s', self::formatTimeInterval($downloadStartTime, time())));
+        system_log(sprintf('所有任务执行完成，共耗时%s', self::formatTimeInterval($startTime, time())));
 
         // 拜拜了您勒
         self::$client && self::$client->close();
         self::$multiClient && self::$multiClient->close();
         $multiClient2->close();
+    }
+
+    public static function formatTimeInterval($start, $end)
+    {
+        $val = $end - $start;
+
+        /*if (function_exists('gmdate')) {
+            return gmdate('H小时i分钟s秒', $val);
+        }*/
+
+        if ($val >= 3600) {
+            $h = floor($val / 3600);
+            $m = floor(($val / 60) % 60);
+            $s = $val % 60;
+
+            return sprintf('%02d小时%02d分钟%02d秒', $h, $m, $s);
+        } else if ($val < 3600 && $val >= 60) {
+            $m = floor(($val / 60) % 60);
+            $s = $val % 60;
+
+            return sprintf('%02d分钟%02d秒', $m, $s);
+        } else { // $val < 60
+            return sprintf('%02d秒', $val);
+        }
+    }
+
+    /**
+     * @param string $name
+     * @param string $url
+     *
+     * @return mixed|string
+     */
+    public static function getQuery(string $name, string $url)
+    {
+        return preg_match(sprintf('/[?&]%s=(?P<val>(?:[^&]|(?!$))+)/i', $name), $url, $m) ? $m['val'] : '';
     }
 
     /**
