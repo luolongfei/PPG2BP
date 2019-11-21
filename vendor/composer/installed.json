@@ -34,7 +34,7 @@
         },
         "time": "2019-08-05T04:18:26+00:00",
         "type": "library",
-        "installation-source": "source",
+        "installation-source": "dist",
         "autoload": {
             "psr-4": {
                 "Curl\\": "src/Curl/"
