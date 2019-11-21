@@ -286,6 +286,9 @@ class HeTang
                 foreach ($datFiles as $datFile) {
                     $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $datFile), sprintf('%s%s', $path, $datFile));
                 }
+
+                // 单独下载数值文件
+                $multiClient2->addDownload(sprintf('%s%sn.dat', $peopleUrl, $layoutNum), sprintf('%s%sn.dat', $path, $layoutNum));
             } else {
                 system_log(sprintf('未匹配到任何dat文件名：%s', $peopleUrl));
             }
