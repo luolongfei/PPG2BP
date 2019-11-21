@@ -152,7 +152,7 @@ class HeTang
         }
 
         system_log(sprintf(
-                '完成筛选numerics，共%d位病人，有%d位病人存在血压数据，共耗时%s分钟',
+                '完成筛选numerics，共%d位病人，有%d位病人存在血压数据，共耗时%s',
                 count($numerics),
                 count($existBP),
                 self::formatTimeInterval($startTime, time())
@@ -243,9 +243,9 @@ class HeTang
             system_log(sprintf('前%d个请求已完成', $size));
         }
 
-        system_log(sprintf('完成PPG数据的筛选，共耗时%s分钟', self::formatTimeInterval($startWaveformTime, time())));
+        system_log(sprintf('完成PPG数据的筛选，共耗时%s', self::formatTimeInterval($startWaveformTime, time())));
         system_log(sprintf('同时存在血压与PPG数据的病人共%d位', count($result)));
-        system_log(sprintf('所有筛选操作共耗时%s分钟', self::formatTimeInterval($startTime, time())));
+        system_log(sprintf('所有筛选操作共耗时%s', self::formatTimeInterval($startTime, time())));
 
         /**
          * 由multiClient2发起下载数据动作
