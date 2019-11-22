@@ -89,12 +89,17 @@ class HeTang
     /**
      * @var string 血压类型 ABP or NBP
      */
-    public $BPType = 'NBP';
+    public $BPType = 'ABP';
 
     /**
      * @var int 最大请求并发数
      */
-    public $size = 500;
+    public $concurrentNum = 500;
+
+    /**
+     * @var array 所有命令行传参
+     */
+    public $allParams = [];
 
     /**
      * @throws ErrorException
@@ -136,7 +141,7 @@ class HeTang
             return false;
         });
 
-        $size = $this->size; // 同一批次最多同时发起的请求个数
+        $size = $this->concurrentNum; // 同一批次最多同时发起的请求个数
         $numericChunks = array_chunk($numerics, $size);
         foreach ($numericChunks as $numericChunk) {
             foreach ($numericChunk as $numeric) {
@@ -291,7 +296,7 @@ class HeTang
                     $datFileName = sprintf('%s%s', $path, $datFile);
                     if (file_exists($datFileName) && filesize($datFileName)) { // 防止重复下载
                         system_log(sprintf('检测到已存在文件，将不重复下载：%s', $datFileName));
-                        break;
+                        continue;
                     }
                     $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $datFile), $datFileName);
                 }
@@ -336,6 +341,33 @@ class HeTang
         $multiClient2->close();
     }
 
+    /*public function setAllParams()
+    {
+        global $argv;
+
+        foreach ($argv as $a) {
+
+        }
+        $this->allParams = $argv;
+
+        return $this;
+    }
+
+    public function getParam(string $name, string $defaults = '')
+    {
+        if (!$this->allParams) {
+            $this->setAllParams();
+        }
+    }*/
+
+    /**
+     * 格式化时间间隔为人类友好时间
+     *
+     * @param integer $start
+     * @param integer $end
+     *
+     * @return string
+     */
     public static function formatTimeInterval($start, $end)
     {
         $val = $end - $start;
