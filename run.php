@@ -160,6 +160,8 @@ class HeTang
             )
         );
 
+        sleep(1);
+
         // 获取所有波形记录名称
         $curl->get('https://physionet.org/physiobank/database/mimic3wdb/matched/RECORDS-waveforms');
         if (!preg_match_all('/(?P<waveforms>p\d+\/p\d+\/.*?)(?:\n|$)/i', $curl->response, $matches)) {
@@ -247,6 +249,8 @@ class HeTang
         system_log(sprintf('完成PPG数据的筛选，共耗时%s', self::formatTimeInterval($startWaveformTime, time())));
         system_log(sprintf('同时存在血压与PPG数据的病人共%d位', count($result)));
         system_log(sprintf('所有筛选操作共耗时%s', self::formatTimeInterval($startTime, time())));
+
+        sleep(1);
 
         /**
          * 由multiClient2发起下载数据动作
