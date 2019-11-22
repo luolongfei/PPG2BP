@@ -277,7 +277,7 @@ class HeTang
             $layoutNum = self::getQuery('layoutNum', $instance->url);
 
             // 匹配所有dat文件名
-            if (preg_match_all(sprintf('/href="(?P<datFile>%s_\d+\.dat)"/i', $layoutNum), $rawResponse, $d)) {
+            if (preg_match_all(sprintf('/href="(?P<datFile>(?:%s_\d+|%sn)\.dat)"/i', $layoutNum, $layoutNum), $rawResponse, $d)) {
                 // 每个病人一个文件夹
                 $people = preg_match('/\/database\/mimic3wdb\/matched\/(?P<path>p\d+\/p\d+\/)/i', $peopleUrl, $p) ? $p['path'] : '';
                 $path = sprintf('%s/data/%s', ROOT_PATH, $people);
@@ -288,11 +288,13 @@ class HeTang
 
                 $datFiles = $d['datFile'];
                 foreach ($datFiles as $datFile) {
-                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $datFile), sprintf('%s%s', $path, $datFile));
+                    $datFileName = sprintf('%s%s', $path, $datFile);
+                    if (file_exists($datFileName) && filesize($datFileName)) { // 防止重复下载
+                        system_log(sprintf('检测到已存在文件，将不重复下载：%s', $datFileName));
+                        break;
+                    }
+                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $datFile), $datFileName);
                 }
-
-                // 单独下载数值文件
-                $multiClient2->addDownload(sprintf('%s%sn.dat', $peopleUrl, $layoutNum), sprintf('%s%sn.dat', $path, $layoutNum));
             } else {
                 system_log(sprintf('未匹配到任何dat文件名：%s', $peopleUrl));
             }
