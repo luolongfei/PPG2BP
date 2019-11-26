@@ -97,6 +97,11 @@ class HeTang
     public $concurrentNum = 500;
 
     /**
+     * @var int 最大并发下载多少个病人的数据
+     */
+    public $concurrentDownloadNum = 4;
+
+    /**
      * @var array 所有命令行传参
      */
     public $allParams = [];
@@ -317,7 +322,7 @@ class HeTang
         });
 
         $downloadStartTime = time();
-        $resultChunks = array_chunk($result, $size);
+        $resultChunks = array_chunk($result, $this->concurrentDownloadNum);
         foreach ($resultChunks as $resultChunk) {
             $compTasks = []; // 清空待压缩任务
             foreach ($resultChunk as $item) {
