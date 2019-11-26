@@ -2,6 +2,9 @@
   "require": {
     "php-curl-class/php-curl-class": "^8.6",
     "ext-json": "*",
-    "ext-curl": "*"
+    "ext-curl": "*",
+    "aws/aws-sdk-php": "^3.121",
+    "ext-mbstring": "*",
+    "ext-zip": "*"
   }
 }

@@ -276,7 +276,8 @@ class HeTang
         /**
          * 由multiClient访问病人画面，以取得需要下载的dat文件地址
          */
-        $multiClient->success(function ($instance) use (&$multiClient2) {
+        $compTasks = []; // 待压缩任务
+        $multiClient->success(function ($instance) use (&$multiClient2, &$compTasks) {
             $rawResponse = $instance->rawResponse;
             $peopleUrl = explode('?', $instance->url)[0];
             $layoutNum = self::getQuery('layoutNum', $instance->url);
@@ -290,6 +291,9 @@ class HeTang
                     mkdir($path, 0777, true);
                     chmod($path, 0777);
                 }
+
+                // 添加压缩任务
+                $compTasks[] = sprintf('%s@%s', $path, $layoutNum);
 
                 $datFiles = $d['datFile'];
                 foreach ($datFiles as $datFile) {
@@ -315,6 +319,7 @@ class HeTang
         $downloadStartTime = time();
         $resultChunks = array_chunk($result, $size);
         foreach ($resultChunks as $resultChunk) {
+            $compTasks = []; // 清空待压缩任务
             foreach ($resultChunk as $item) {
                 $multiClient->addGet(
                     sprintf(
@@ -330,6 +335,47 @@ class HeTang
             $multiClient2->start();
             system_log(sprintf('前%d个请求已完成', $size));
             system_log(sprintf('下载耗时：%s', self::formatTimeInterval($dts, time())));
+
+            // TODO 压缩已下载的文件
+            system_log('开始压缩dat文件');
+            $compStartTime = time();
+            foreach ($compTasks as $task) {
+                list($dir, $layoutNum) = explode('@', $task);
+                $nameRegex = sprintf('/(?:%s_\d+|%sn)\.dat/i', $layoutNum, $layoutNum);
+                $files = self::lsFiles($dir, $nameRegex);
+
+                try {
+                    $zipFile = sprintf('%s%s.zip', $dir, $layoutNum);
+                    $zip = new ZipArchive();
+                    if ($zip->open($zipFile, ZIPARCHIVE::CREATE) !== true) {
+                        throw new \Exception(sprintf('创建压缩文件失败：%s', $zipFile));
+                    }
+
+                    foreach ($files as $file) {
+                        $zip->addFile($file, basename($file));
+                    }
+                    $zip->close();
+
+                    // 执行$zip->close()才是真正压缩过程，故只能在这之后删除被压缩的文件，否则找不到要被压缩的文件
+                    foreach ($files as $file) {
+                        if (file_exists($file)) {
+                            if (unlink($file)) {
+                                system_log(sprintf('成功删除已压缩文件：%s', $file));
+                            } else {
+                                system_log(sprintf('删除文件失败：%s', $file));
+                            }
+                        } else {
+                            system_log(sprintf('文件不存在，无法删除：%s', $file));
+                        }
+                    }
+                } catch (\Exception $e) {
+                    if (isset($zip) && $zip instanceof ZipArchive) {
+                        $zip->close();
+                    }
+                    system_log(sprintf('尝试压缩出错：%s', $e->getMessage()));
+                }
+            }
+            system_log(sprintf('完成一批压缩任务，共耗时%s', self::formatTimeInterval($compStartTime, time())));
         }
 
         system_log(sprintf('所有文件下载完成，下载过程共耗时%s', self::formatTimeInterval($downloadStartTime, time())));
@@ -341,14 +387,46 @@ class HeTang
         $multiClient2->close();
     }
 
-    /*public function setAllParams()
+    /**
+     * 列出目录下匹配的文件，如果不指定匹配正则则列出目录下所有文件
+     *
+     * @param string $directory
+     * @param string $nameRegex 匹配文件名的正则
+     *
+     * @return array
+     */
+    public static function lsFiles(string $directory, string $nameRegex = '')
+    {
+        $directory = realpath($directory) . DS;
+        if (!is_dir($directory)) {
+            return [];
+        }
+
+        $files = [];
+        $d = dir($directory);
+        while (($filename = $d->read()) !== false) {
+            $file = $directory . $filename;
+            if ($filename !== '.' && $filename !== '..' && !is_dir($file)) {
+                $filename = mb_convert_encoding($filename, 'UTF-8');
+                if (!$nameRegex || preg_match($nameRegex, $filename)) {
+                    $files[] = $file;
+                }
+            }
+        }
+        $d->close();
+
+        return $files;
+    }
+
+    public function setAllParams()
     {
         global $argv;
 
         foreach ($argv as $a) {
-
+            if (preg_match('/^-{1,2}(?P<name>\w+)=(?P<val>[^\s]+)$/i', $a, $m)) {
+                $this->allParams[$m['name']] = $m['val'];
+            }
         }
-        $this->allParams = $argv;
 
         return $this;
     }
@@ -358,7 +436,7 @@ class HeTang
         if (!$this->allParams) {
             $this->setAllParams();
         }
-    }*/
+    }
 
     /**
      * 格式化时间间隔为人类友好时间
