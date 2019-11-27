@@ -21,31 +21,35 @@ class S3
     protected static $S3Client;
 
     /**
-     * @var string 桶名
-     */
-    public static $bucket;
-
-    /**
      * @param string $bucket
      *
      * @return S3Client
      */
-    public static function getS3Client($bucket = '')
+    public static function getS3Client()
     {
         if (!self::$S3Client instanceof S3Client) {
             self::$S3Client = new S3Client(self::getConfig());
-            self::$bucket = $bucket ?: env('AWS_S3_BUCKET');
         }
 
         return self::$S3Client;
     }
 
-    public static function putObject($file, $key = '', $contentType = 'image/png', $ACL = 'public-read')
+    /**
+     * 上传文件
+     *
+     * @param $file
+     * @param string $path 在桶下面的路径，通过 桶名 + key 即能访问到文件
+     * @param string $bucket 桶名
+     * @param string $ACL
+     *
+     * @return \Aws\Result
+     */
+    public static function putObject($file, $path = '', $bucket = '', $ACL = 'public-read')
     {
         $client = self::getS3Client();
         return $client->putObject([
-            'Bucket' => self::$bucket,
-            'Key' => $key . basename($file),
+            'Bucket' => $bucket ?: env('AWS_S3_BUCKET'),
+            'Key' => $path . basename($file),
             'SourceFile' => $file,
 //            'ContentType' => $contentType,
             'ACL' => $ACL,
