@@ -40,14 +40,14 @@ class S3
         return self::$S3Client;
     }
 
-    public static function putObject($file, $key = '', $fileType = 'image/png', $ACL = 'public-read')
+    public static function putObject($file, $key = '', $contentType = 'image/png', $ACL = 'public-read')
     {
         $client = self::getS3Client();
         return $client->putObject([
             'Bucket' => self::$bucket,
             'Key' => $key . basename($file),
             'SourceFile' => $file,
-            'ContentType' => $fileType,
+//            'ContentType' => $contentType,
             'ACL' => $ACL,
             'debug' => false
         ]);

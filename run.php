@@ -304,8 +304,8 @@ class HeTang
             system_log(sprintf('前%d个请求已完成', $size));
             system_log(sprintf('下载耗时：%s', self::formatTimeInterval($dts, time())));
 
-            // TODO 压缩已下载的文件
-            system_log('开始压缩dat文件');
+            // 压缩已下载的文件
+            system_log('开始压缩已下载的Dat文件');
             $compStartTime = time();
             foreach ($compTasks as $task) {
                 list($dir, $layoutNum) = explode('@', $task);
@@ -336,6 +336,7 @@ class HeTang
                             system_log(sprintf('文件不存在，无法删除：%s', $file));
                         }
                     }
+                    system_log(sprintf('成功生成压缩文件：%s', $zipFile));
                 } catch (\Exception $e) {
                     if (isset($zip) && $zip instanceof ZipArchive) {
                         $zip->close();
