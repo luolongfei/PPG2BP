@@ -334,7 +334,6 @@ class HeTang
 
                     foreach ($files as $file) {
                         $zip->addFile($file, basename($file));
-                        usleep(50000);
                     }
                     $zip->close();
 
