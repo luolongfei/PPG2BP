@@ -68,6 +68,7 @@ require __DIR__ . '/vendor/autoload.php';
 
 use Curl\Curl;
 use Curl\MultiCurl;
+use Luolongfei\App\Aws\S3;
 
 class HeTang
 {
@@ -412,7 +413,6 @@ class HeTang
         while (($filename = $d->read()) !== false) {
             $file = $directory . $filename;
             if ($filename !== '.' && $filename !== '..' && !is_dir($file)) {
-                $filename = mb_convert_encoding($filename, 'UTF-8');
                 if (!$nameRegex || preg_match($nameRegex, $filename)) {
                     $files[] = $file;
                 }
