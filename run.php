@@ -26,44 +26,6 @@ function customize_error_handler()
     }
 }
 
-/**
- * 写日志
- *
- * @param $content
- * @param array $response
- * @param string $fileName
- */
-function system_log($content, array $response = [], $fileName = '')
-{
-    try {
-        $path = sprintf('%s/logs/%s/', ROOT_PATH, date('Y-m'));
-        $file = $path . ($fileName ?: date('d')) . '.log';
-
-        if (!is_dir($path)) {
-            mkdir($path, 0777, true);
-            chmod($path, 0777);
-        }
-
-        $handle = fopen($file, 'a'); // 追加而非覆盖
-
-        if (!filesize($file)) {
-            chmod($file, 0666);
-        }
-
-        $msg = sprintf(
-            "[%s] %s %s\n",
-            date('Y-m-d H:i:s'),
-            is_string($content) ? $content : json_encode($content),
-            $response ? json_encode($response, JSON_UNESCAPED_UNICODE) : '');
-        fwrite($handle, $msg);
-        echo $msg;
-
-        fclose($handle);
-    } catch (\Exception $e) {
-        // do nothing
-    }
-}
-
 require __DIR__ . '/vendor/autoload.php';
 
 use Curl\Curl;
