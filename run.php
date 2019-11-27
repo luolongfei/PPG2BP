@@ -81,78 +81,76 @@ class HeTang
         $curl = $ht->getClient();
         $multiClient = $this->getMultiClient();
         $multiClient->setTimeout(233);
-
-        // 获取所有数值记录名
-        $curl->get('https://physionet.org/physiobank/database/mimic3wdb/matched/RECORDS-numerics');
-        if (!preg_match_all('/(?P<numerics>p\d+\/p\d+\/p.*?)(?:\n|$)/i', $curl->response, $matches)) {
-            throw new \Exception('匹配numerics失败');
-        }
-        $numerics = $matches['numerics'];
-
-        $existBP = [];
-        $multiClient->success(function ($instance) use (&$existBP) {
-            $rawResponse = $instance->rawResponse;
-            $url = $instance->url;
-            $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)n\.hea/i', $url, $m) ? $m['numeric_name'] : '';
-            if (stripos($rawResponse, $this->BPType) !== false) {
-                $existBP[] = $numericName; // 保存去掉n后的名称
-                system_log(sprintf('发现含有血压数据的画面：%s', $url));
-            } else {
-                system_log(sprintf('发现不含血压数据的画面：%s', $url));
-            }
-
-            return true;
-        });
-        $multiClient->error(function ($instance) {
-            system_log(sprintf('multiClient查询是否存在血压数据 curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
-
-            return false;
-        });
-
-        $size = $this->concurrentNum; // 同一批次最多同时发起的请求个数
-        $numericChunks = array_chunk($numerics, $size);
-        foreach ($numericChunks as $numericChunk) {
-            foreach ($numericChunk as $numeric) {
-                $multiClient->addGet(
-                    sprintf(
-                        'https://physionet.org/physiobank/database/mimic3wdb/matched/%s.hea',
-                        $numeric
-                    )
-                );
-            }
-            system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
-            $multiClient->start(); // Blocks until all items in the queue have been processed.
-            system_log(sprintf('前%d个请求已完成', $size));
-        }
-
-        system_log(sprintf(
-                '完成筛选numerics，共%d位病人，有%d位病人存在血压数据，共耗时%s',
-                count($numerics),
-                count($existBP),
-                self::formatTimeInterval($startTime, time())
-            )
-        );
-
-        sleep(1);
-
-        // 获取所有波形记录名称
-        $curl->get('https://physionet.org/physiobank/database/mimic3wdb/matched/RECORDS-waveforms');
-        if (!preg_match_all('/(?P<waveforms>p\d+\/p\d+\/.*?)(?:\n|$)/i', $curl->response, $matches)) {
-            throw new \Exception('匹配waveforms失败');
-        }
-        $waveforms = $matches['waveforms'];
+        $multiClient2 = new MultiCurl(); // 在回调中执行第二次异步操作
+        $multiClient2->setTimeout(233);
 
         // 既有血压数据又有PPG数据的病人
         $result = [];
-
-        // 需要一个新CURL对象在回调中执行第二步操作
-        $multiClient2 = new MultiCurl();
-        $multiClient2->setTimeout(233);
-
         $indexCache = 'ppg_bp.index';
         if (file_exists($indexCache)) { // 从缓存读取
             $result = json_decode(file_get_contents($indexCache), true);
         } else {
+            // 获取所有数值记录名
+            $curl->get('https://physionet.org/physiobank/database/mimic3wdb/matched/RECORDS-numerics');
+            if (!preg_match_all('/(?P<numerics>p\d+\/p\d+\/p.*?)(?:\n|$)/i', $curl->response, $matches)) {
+                throw new \Exception('匹配numerics失败');
+            }
+            $numerics = $matches['numerics'];
+
+            $existBP = [];
+            $multiClient->success(function ($instance) use (&$existBP) {
+                $rawResponse = $instance->rawResponse;
+                $url = $instance->url;
+                $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)n\.hea/i', $url, $m) ? $m['numeric_name'] : '';
+                if (stripos($rawResponse, $this->BPType) !== false) {
+                    $existBP[] = $numericName; // 保存去掉n后的名称
+                    system_log(sprintf('发现含有血压数据的画面：%s', $url));
+                } else {
+                    system_log(sprintf('发现不含血压数据的画面：%s', $url));
+                }
+
+                return true;
+            });
+            $multiClient->error(function ($instance) {
+                system_log(sprintf('multiClient查询是否存在血压数据 curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
+
+                return false;
+            });
+
+            $size = $this->concurrentNum; // 同一批次最多同时发起的请求个数
+            $numericChunks = array_chunk($numerics, $size);
+            foreach ($numericChunks as $numericChunk) {
+                foreach ($numericChunk as $numeric) {
+                    $multiClient->addGet(
+                        sprintf(
+                            'https://physionet.org/physiobank/database/mimic3wdb/matched/%s.hea',
+                            $numeric
+                        )
+                    );
+                }
+                system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
+                $multiClient->start(); // Blocks until all items in the queue have been processed.
+                system_log(sprintf('前%d个请求已完成', $size));
+            }
+
+            system_log(sprintf(
+                    '完成筛选numerics，共%d位病人，有%d位病人存在血压数据，共耗时%s',
+                    count($numerics),
+                    count($existBP),
+                    self::formatTimeInterval($startTime, time())
+                )
+            );
+
+            sleep(1);
+
+            // 获取所有波形记录名称
+            $curl->get('https://physionet.org/physiobank/database/mimic3wdb/matched/RECORDS-waveforms');
+            if (!preg_match_all('/(?P<waveforms>p\d+\/p\d+\/.*?)(?:\n|$)/i', $curl->response, $matches)) {
+                throw new \Exception('匹配waveforms失败');
+            }
+            $waveforms = $matches['waveforms'];
+
+
             $multiClient2->success(function ($instance) use (&$result) {
                 $rawResponse = $instance->rawResponse;
                 $url = explode('?', $instance->url)[0];
