@@ -148,80 +148,90 @@ class HeTang
         // 需要一个新CURL对象在回调中执行第二步操作
         $multiClient2 = new MultiCurl();
         $multiClient2->setTimeout(233);
-        $multiClient2->success(function ($instance) use (&$result) {
-            $rawResponse = $instance->rawResponse;
-            $url = explode('?', $instance->url)[0];
-            $peopleUrl = preg_match(
-                '/(?P<rootPath>https?:\/\/physionet\.org\/physiobank\/database\/mimic3wdb\/matched\/p\d+\/p\d+\/)/i',
-                $url,
-                $r
-            ) ? $r['rootPath'] : '';
-            $numericName = self::getQuery('numericName', $instance->url); // 含n，仅取名
-            $numericUrl = sprintf('%s%s.hea', $peopleUrl, $numericName);
-            $layoutNum = preg_match('/\/(?P<layoutNum>\d+)_layout\.hea/i', $url, $m) ? $m['layoutNum'] : '';
-            if (stripos($rawResponse, 'PLETH') !== false) { // 存在ppg波形
-                $result[] = [
-                    'peopleUrl' => $peopleUrl,
-                    'layoutNum' => $layoutNum
-                ];
-                system_log(sprintf('发现PPG数据：%s', $url));
-                system_log(sprintf("发现既有BP又有PPG数据的病人：\n%s\n%s\n", $url, $numericUrl), [], 'result');
-            } else {
-                system_log(sprintf('未发现PPG数据：%s', $url));
-            }
-        });
-        $multiClient2->error(function ($instance) {
-            system_log(sprintf('multiClient2获取layout画面 curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
 
-            return false;
-        });
+        $indexCache = 'ppg_bp.index';
+        if (file_exists($indexCache)) { // 从缓存读取
+            $result = json_decode(file_get_contents($indexCache), true);
+        } else {
+            $multiClient2->success(function ($instance) use (&$result) {
+                $rawResponse = $instance->rawResponse;
+                $url = explode('?', $instance->url)[0];
+                $peopleUrl = preg_match(
+                    '/(?P<rootPath>https?:\/\/physionet\.org\/physiobank\/database\/mimic3wdb\/matched\/p\d+\/p\d+\/)/i',
+                    $url,
+                    $r
+                ) ? $r['rootPath'] : '';
+                $numericName = self::getQuery('numericName', $instance->url); // 含n，仅取名
+                $numericUrl = sprintf('%s%s.hea', $peopleUrl, $numericName);
+                $layoutNum = preg_match('/\/(?P<layoutNum>\d+)_layout\.hea/i', $url, $m) ? $m['layoutNum'] : '';
+                if (stripos($rawResponse, 'PLETH') !== false) { // 存在ppg波形
+                    $result[] = [
+                        'peopleUrl' => $peopleUrl,
+                        'layoutNum' => $layoutNum
+                    ];
+                    system_log(sprintf('发现PPG数据：%s', $url));
+                    system_log(sprintf("发现既有BP又有PPG数据的病人：\n%s\n%s\n", $url, $numericUrl), [], 'result');
+                } else {
+                    system_log(sprintf('未发现PPG数据：%s', $url));
+                }
+            });
+            $multiClient2->error(function ($instance) {
+                system_log(sprintf('multiClient2获取layout画面 curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
 
-        // 重新定义之前multiClient回调
-        $multiClient->success(function ($instance) use (&$multiClient2) {
-            $rawResponse = $instance->rawResponse;
-            $url = $instance->url;
-            $path = preg_match('/\/mimic3wdb\/matched\/(?P<path>p\d+\/p\d+\/)/i', $url, $p) ? $p['path'] : '';
-            $layoutName = preg_match('/(?P<layout>\d+_layout)\s\d+/i', $rawResponse, $m) ? $m['layout'] : '';
-            $layoutUrl = sprintf('%s%s%s.hea', 'https://physionet.org/physiobank/database/mimic3wdb/matched/', $path, $layoutName);
-            $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)\.hea/i', $url, $m) ? $m['numeric_name'] : '';
-            if ($layoutName && $path) {
-                $multiClient2->addGet($layoutUrl . '?numericName=' . $numericName . 'n');
-            } else {
-                system_log(sprintf('此地址下未发现layout名：%s', $url));
-            }
+                return false;
+            });
 
-            return true;
-        });
-        $multiClient->error(function ($instance) {
-            system_log(sprintf('multiClient获取 layout url， curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
-
-            return false;
-        });
-
-        $startWaveformTime = time();
-        $waveformChunks = array_chunk($waveforms, $size);
-        foreach ($waveformChunks as $waveformChunk) {
-            foreach ($waveformChunk as $waveform) {
-                if (!in_array($waveform, $existBP)) {
-                    continue;
+            // 重新定义之前multiClient回调
+            $multiClient->success(function ($instance) use (&$multiClient2) {
+                $rawResponse = $instance->rawResponse;
+                $url = $instance->url;
+                $path = preg_match('/\/mimic3wdb\/matched\/(?P<path>p\d+\/p\d+\/)/i', $url, $p) ? $p['path'] : '';
+                $layoutName = preg_match('/(?P<layout>\d+_layout)\s\d+/i', $rawResponse, $m) ? $m['layout'] : '';
+                $layoutUrl = sprintf('%s%s%s.hea', 'https://physionet.org/physiobank/database/mimic3wdb/matched/', $path, $layoutName);
+                $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)\.hea/i', $url, $m) ? $m['numeric_name'] : '';
+                if ($layoutName && $path) {
+                    $multiClient2->addGet($layoutUrl . '?numericName=' . $numericName . 'n');
+                } else {
+                    system_log(sprintf('此地址下未发现layout名：%s', $url));
                 }
 
-                $multiClient->addGet(
-                    sprintf(
-                        'https://physionet.org/physiobank/database/mimic3wdb/matched/%s.hea',
-                        $waveform
-                    )
-                );
+                return true;
+            });
+            $multiClient->error(function ($instance) {
+                system_log(sprintf('multiClient获取 layout url， curl请求页面出错：%s %s#%s', $instance->url, $instance->errorCode, $instance->errorMessage));
+
+                return false;
+            });
+
+            $startWaveformTime = time();
+            $waveformChunks = array_chunk($waveforms, $size);
+            foreach ($waveformChunks as $waveformChunk) {
+                foreach ($waveformChunk as $waveform) {
+                    if (!in_array($waveform, $existBP)) {
+                        continue;
+                    }
+
+                    $multiClient->addGet(
+                        sprintf(
+                            'https://physionet.org/physiobank/database/mimic3wdb/matched/%s.hea',
+                            $waveform
+                        )
+                    );
+                }
+                system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
+                $multiClient->start(); // Blocks until all items in the queue have been processed.
+                $multiClient2->start();
+                system_log(sprintf('前%d个请求已完成', $size));
             }
-            system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
-            $multiClient->start(); // Blocks until all items in the queue have been processed.
-            $multiClient2->start();
-            system_log(sprintf('前%d个请求已完成', $size));
+
+            // 缓存索引
+            file_put_contents($indexCache, json_encode($result));
+
+            system_log(sprintf('完成PPG数据的筛选，共耗时%s', self::formatTimeInterval($startWaveformTime, time())));
+            system_log(sprintf('所有筛选操作共耗时%s', self::formatTimeInterval($startTime, time())));
         }
 
-        system_log(sprintf('完成PPG数据的筛选，共耗时%s', self::formatTimeInterval($startWaveformTime, time())));
         system_log(sprintf('同时存在血压与PPG数据的病人共%d位', count($result)));
-        system_log(sprintf('所有筛选操作共耗时%s', self::formatTimeInterval($startTime, time())));
 
         sleep(1);
 
