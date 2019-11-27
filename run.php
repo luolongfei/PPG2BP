@@ -117,8 +117,7 @@ class HeTang
                 return false;
             });
 
-            $size = $this->concurrentNum; // 同一批次最多同时发起的请求个数
-            $numericChunks = array_chunk($numerics, $size);
+            $numericChunks = array_chunk($numerics, $this->concurrentNum);
             foreach ($numericChunks as $numericChunk) {
                 foreach ($numericChunk as $numeric) {
                     $multiClient->addGet(
@@ -128,9 +127,9 @@ class HeTang
                         )
                     );
                 }
-                system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
+                system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $this->concurrentNum));
                 $multiClient->start(); // Blocks until all items in the queue have been processed.
-                system_log(sprintf('前%d个请求已完成', $size));
+                system_log(sprintf('前%d个请求已完成', $this->concurrentNum));
             }
 
             system_log(sprintf(
@@ -202,7 +201,7 @@ class HeTang
             });
 
             $startWaveformTime = time();
-            $waveformChunks = array_chunk($waveforms, $size);
+            $waveformChunks = array_chunk($waveforms, $this->concurrentNum);
             foreach ($waveformChunks as $waveformChunk) {
                 foreach ($waveformChunk as $waveform) {
                     if (!in_array($waveform, $existBP)) {
@@ -216,10 +215,10 @@ class HeTang
                         )
                     );
                 }
-                system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
+                system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $this->concurrentNum));
                 $multiClient->start(); // Blocks until all items in the queue have been processed.
                 $multiClient2->start();
-                system_log(sprintf('前%d个请求已完成', $size));
+                system_log(sprintf('前%d个请求已完成', $this->concurrentNum));
             }
 
             // 缓存索引
@@ -312,10 +311,10 @@ class HeTang
                 );
             }
             $dts = time();
-            system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $size));
+            system_log(sprintf('等待中，直到前%d个请求完成，防止请求过于频繁', $this->concurrentNum));
             $multiClient->start(); // Blocks until all items in the queue have been processed.
             $multiClient2->start();
-            system_log(sprintf('前%d个请求已完成', $size));
+            system_log(sprintf('前%d个请求已完成', $this->concurrentNum));
             system_log(sprintf('下载耗时：%s', self::formatTimeInterval($dts, time())));
 
             // 压缩已下载的文件
