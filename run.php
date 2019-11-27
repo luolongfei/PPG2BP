@@ -337,6 +337,7 @@ class HeTang
                         }
                     }
                     system_log(sprintf('成功生成压缩文件：%s', $zipFile));
+                    usleep(500000);
                 } catch (\Exception $e) {
                     if (isset($zip) && $zip instanceof ZipArchive) {
                         $zip->close();
