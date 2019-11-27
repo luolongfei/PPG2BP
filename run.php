@@ -275,6 +275,12 @@ class HeTang
 
                 $datFiles = $d['datFile'];
                 foreach ($datFiles as $datFile) {
+                    $datZipFileName = sprintf('%s%s.zip', $path, $layoutNum);
+                    if (file_exists($datZipFileName) && filesize($datZipFileName)) { // 已下载且已压缩
+                        system_log(sprintf('检测到已下载且已被处理的压缩包，将跳过今次任务，防止重复处理：%s', $datZipFileName));
+                        break;
+                    }
+
                     $datFileName = sprintf('%s%s', $path, $datFile);
                     if (file_exists($datFileName) && filesize($datFileName)) { // 防止重复下载
                         system_log(sprintf('检测到已存在文件，将不重复下载：%s', $datFileName));
@@ -331,6 +337,7 @@ class HeTang
 
                     foreach ($files as $file) {
                         $zip->addFile($file, basename($file));
+                        usleep(50000);
                     }
                     $zip->close();
 
@@ -347,7 +354,6 @@ class HeTang
                         }
                     }
                     system_log(sprintf('成功生成压缩文件：%s', $zipFile));
-                    usleep(500000);
                 } catch (\Exception $e) {
                     if (isset($zip) && $zip instanceof ZipArchive) {
                         $zip->close();
