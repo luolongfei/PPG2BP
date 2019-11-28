@@ -386,6 +386,7 @@ class HeTang
         foreach ($argv as $a) {
             if (preg_match('/^-{1,2}(?P<name>\w+)=(?P<val>[^\s]+)$/i', $a, $m)) {
                 $this->allParams[$m['name']] = $m['val'];
+                
             }
         }
 
