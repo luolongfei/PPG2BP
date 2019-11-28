@@ -258,7 +258,7 @@ class HeTang
             $layoutNum = self::getQuery('layoutNum', $instance->url);
 
             // 匹配所有dat文件名
-            if (preg_match_all(sprintf('/href="(?P<datFile>(?:%s_\d+|%sn)\.dat)"/i', $layoutNum, $layoutNum), $rawResponse, $d)) {
+            if (preg_match_all(sprintf('/href="(?P<datFile>%s_\d+)\.dat"/i', $layoutNum), $rawResponse, $d)) {
                 // 每个病人一个文件夹
                 $people = preg_match('/\/database\/mimic3wdb\/matched\/(?P<path>p\d+\/p\d+\/)/i', $peopleUrl, $p) ? $p['path'] : '';
                 $path = sprintf('%s/data/%s', ROOT_PATH, $people);
@@ -267,14 +267,46 @@ class HeTang
                     chmod($path, 0777);
                 }
 
-                $datFiles = $d['datFile'];
-                foreach ($datFiles as $datFile) {
-                    $datFileName = sprintf('%s%s', $path, $datFile);
-                    if (file_exists($datFileName) && filesize($datFileName)) { // 防止重复下载
-                        system_log(sprintf('检测到已存在文件，将不重复下载：%s', $datFileName));
+                $files = $d['datFile'];
+                foreach ($files as $file) {
+                    $filename = sprintf('%s%s.csv', $path, $file);
+                    if (file_exists($filename) && filesize($filename)) { // 防止重复下载
+                        system_log(sprintf('检测到已存在文件，将不重复下载：%s', $filename));
                         continue;
                     }
-                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $datFile), $datFileName);
+
+                    // 信号开始时间与结束时间，只下载60s
+                    $start = 1800;
+                    $end = 1860;
+
+                    // 执行命令下载
+                    $cmd = sprintf(
+                        'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %d -t %d -v -pS -s 1 > %s',
+                        $people,
+                        $file,
+                        $start,
+                        $end,
+                        $filename
+                    );
+                    $error = exec($cmd);
+                    if ($error) {
+                        system_log(sprintf('执行命令出错：%s (%s)', $error, $cmd));
+                    } else {
+                        if (file_exists($filename)) {
+                            system_log(sprintf('成功执行下载命令：%s', $cmd));
+                        } else {
+                            system_log(sprintf('未知错误，文件下载不成功：%s', $filename));
+                        }
+                    }
+                }
+
+                // 单独下载血压数值文件
+                $nDatFile = sprintf('%sn.dat', $layoutNum);
+                $nDatFileName = sprintf('%s%s', $path, $nDatFile);
+                if (file_exists($nDatFileName) && filesize($nDatFileName)) {
+                    system_log(sprintf('检测到血压数值文件已存在，将不重复下载：%s', $nDatFileName));
+                } else {
+                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $nDatFile), $nDatFileName);
                 }
             } else {
                 system_log(sprintf('未匹配到任何dat文件名：%s', $peopleUrl));
