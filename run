@@ -66,6 +66,16 @@ class HeTang
     public $concurrentDownloadNum = 4;
 
     /**
+     * @var int 信号开始时间
+     */
+    public $signalStartTime = 1800;
+
+    /**
+     * @var int 信号结束时间
+     */
+    public $signalEndTime = 1860;
+
+    /**
      * @var array 所有命令行传参
      */
     public $allParams = [];
@@ -275,17 +285,13 @@ class HeTang
                         continue;
                     }
 
-                    // 信号开始时间与结束时间，只下载60s
-                    $start = 1800;
-                    $end = 1860;
-
                     // 执行命令下载
                     $cmd = sprintf(
                         'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %d -t %d -v -pS -s 1 > %s',
                         $people,
                         $file,
-                        $start,
-                        $end,
+                        $this->signalStartTime,
+                        $this->signalEndTime,
                         $filename
                     );
                     $error = exec($cmd);
@@ -295,10 +301,10 @@ class HeTang
                         if (file_exists($filename)) {
                             $fileSize = filesize($filename) * 1024;
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
-                                unlink($filename);
                                 system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s (%skb)', $filename, $fileSize));
+                                unlink($filename);
                             } else {
-                                system_log(sprintf('成功执行下载命令：%s', $cmd));
+                                system_log(sprintf('成功执行下载命令：%s (%skb)', $cmd, $fileSize));
                             }
                         } else {
                             system_log(sprintf('未知错误，文件下载不成功：%s', $filename));

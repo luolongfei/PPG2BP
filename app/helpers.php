@@ -80,6 +80,8 @@ if (!function_exists('system_log')) {
             echo $msg;
 
             fclose($handle);
+
+            flush();
         } catch (\Exception $e) {
             // do nothing
         }
