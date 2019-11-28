@@ -299,7 +299,7 @@ class HeTang
                         system_log(sprintf('执行命令出错：%s (%s)', $error, $cmd));
                     } else {
                         if (file_exists($filename)) {
-                            $fileSize = filesize($filename) * 1024;
+                            $fileSize = filesize($filename) / 1024;
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
                                 unlink($filename);
                                 system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s (%skb)', $filename, $fileSize));
