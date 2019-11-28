@@ -293,7 +293,13 @@ class HeTang
                         system_log(sprintf('执行命令出错：%s (%s)', $error, $cmd));
                     } else {
                         if (file_exists($filename)) {
-                            system_log(sprintf('成功执行下载命令：%s', $cmd));
+                            $fileSize = filesize($filename) * 1024;
+                            if ($fileSize < 16) { // 小于16kb的文件视作无效
+                                unlink($filename);
+                                system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s (%skb)', $filename, $fileSize));
+                            } else {
+                                system_log(sprintf('成功执行下载命令：%s', $cmd));
+                            }
                         } else {
                             system_log(sprintf('未知错误，文件下载不成功：%s', $filename));
                         }
@@ -386,7 +392,7 @@ class HeTang
         foreach ($argv as $a) {
             if (preg_match('/^-{1,2}(?P<name>\w+)=(?P<val>[^\s]+)$/i', $a, $m)) {
                 $this->allParams[$m['name']] = $m['val'];
-                
+
             }
         }
 
