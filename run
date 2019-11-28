@@ -301,8 +301,8 @@ class HeTang
                         if (file_exists($filename)) {
                             $fileSize = filesize($filename) * 1024;
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
-                                system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s (%skb)', $filename, $fileSize));
                                 unlink($filename);
+                                system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s (%skb)', $filename, $fileSize));
                             } else {
                                 system_log(sprintf('成功执行下载命令：%s (%skb)', $cmd, $fileSize));
                             }
