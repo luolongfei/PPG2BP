@@ -53,32 +53,41 @@ class HeTang
     /**
      * @var string 血压类型 ABP or NBP
      */
-    public $BPType = 'ABP';
+    public $bpType;
 
     /**
      * @var int 最大请求并发数
      */
-    public $concurrentNum = 500;
+    public $concurrentNum;
 
     /**
      * @var int 最大并发下载多少个病人的数据
      */
-    public $concurrentDownloadNum = 4;
+    public $concurrentDownloadNum;
 
     /**
      * @var int 信号开始时间
      */
-    public $signalStartTime = 1800;
+    public $signalStartTime;
 
     /**
      * @var int 信号结束时间
      */
-    public $signalEndTime = 1860;
+    public $signalEndTime;
 
     /**
      * @var array 所有命令行传参
      */
-    public $allParams = [];
+    public $allArgv = [];
+
+    public function __construct()
+    {
+        $this->bpType = $this->getArgv('bpType', 'ABP');
+        $this->concurrentNum = $this->getArgv('cn', 500);
+        $this->concurrentDownloadNum = $this->getArgv('cdn', 4);
+        $this->signalStartTime = $this->getArgv('sst', 1800);
+        $this->signalEndTime = $this->getArgv('set', 1860);
+    }
 
     /**
      * @throws ErrorException
@@ -97,7 +106,7 @@ class HeTang
 
         // 既有血压数据又有PPG数据的病人
         $result = [];
-        $indexCache = 'ppg_bp.index';
+        $indexCache = sprintf('ppg_%s.index', $this->bpType);
         if (file_exists($indexCache)) { // 从缓存读取
             $result = json_decode(file_get_contents($indexCache), true);
         } else {
@@ -113,7 +122,7 @@ class HeTang
                 $rawResponse = $instance->rawResponse;
                 $url = $instance->url;
                 $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)n\.hea/i', $url, $m) ? $m['numeric_name'] : '';
-                if (stripos($rawResponse, $this->BPType) !== false) {
+                if (stripos($rawResponse, $this->bpType) !== false) {
                     $existBP[] = $numericName; // 保存去掉n后的名称
                     system_log(sprintf('发现含有血压数据的画面：%s', $url));
                 } else {
@@ -287,7 +296,7 @@ class HeTang
 
                     // 执行命令下载
                     $cmd = sprintf(
-                        'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %d -t %d -v -pS -s 1 > %s',
+                        'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %s -t %s -v -pS -s 1 > %s',
                         $people,
                         $file,
                         $this->signalStartTime,
@@ -391,25 +400,39 @@ class HeTang
         return $files;
     }
 
-    public function setAllParams()
+    /**
+     * 设置命令行所有参数
+     *
+     * @return array
+     */
+    public function setAllArgv()
     {
         global $argv;
 
         foreach ($argv as $a) {
             if (preg_match('/^-{1,2}(?P<name>\w+)=(?P<val>[^\s]+)$/i', $a, $m)) {
-                $this->allParams[$m['name']] = $m['val'];
-
+                $this->allArgv[$m['name']] = $m['val'];
             }
         }
 
-        return $this;
+        return $this->allArgv;
     }
 
-    public function getParam(string $name, string $defaults = '')
+    /**
+     * 获取命令行参数
+     *
+     * @param string $name
+     * @param string $defaults
+     *
+     * @return mixed|string
+     */
+    public function getArgv(string $name, string $defaults = '')
     {
-        if (!$this->allParams) {
-            $this->setAllParams();
+        if (!$this->allArgv) {
+            $this->setAllArgv();
         }
+
+        return $this->allArgv[$name] ?? $defaults;
     }
 
     /**
