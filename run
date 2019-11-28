@@ -252,8 +252,7 @@ class HeTang
         /**
          * 由multiClient访问病人画面，以取得需要下载的dat文件地址
          */
-        $compTasks = []; // 待压缩任务
-        $multiClient->success(function ($instance) use (&$multiClient2, &$compTasks) {
+        $multiClient->success(function ($instance) use (&$multiClient2) {
             $rawResponse = $instance->rawResponse;
             $peopleUrl = explode('?', $instance->url)[0];
             $layoutNum = self::getQuery('layoutNum', $instance->url);
@@ -268,17 +267,8 @@ class HeTang
                     chmod($path, 0777);
                 }
 
-                // 添加压缩任务
-                $compTasks[] = sprintf('%s@%s', $path, $layoutNum);
-
                 $datFiles = $d['datFile'];
                 foreach ($datFiles as $datFile) {
-                    $datZipFileName = sprintf('%s%s.zip', $path, $layoutNum);
-                    if (file_exists($datZipFileName) && filesize($datZipFileName)) { // 已下载且已压缩
-                        system_log(sprintf('检测到已下载且已被处理的压缩包，将跳过今次任务，防止重复处理：%s', $datZipFileName));
-                        break;
-                    }
-
                     $datFileName = sprintf('%s%s', $path, $datFile);
                     if (file_exists($datFileName) && filesize($datFileName)) { // 防止重复下载
                         system_log(sprintf('检测到已存在文件，将不重复下载：%s', $datFileName));
@@ -301,7 +291,6 @@ class HeTang
         $downloadStartTime = time();
         $resultChunks = array_chunk($result, $this->concurrentDownloadNum);
         foreach ($resultChunks as $resultChunk) {
-            $compTasks = []; // 清空待压缩任务
             foreach ($resultChunk as $item) {
                 $multiClient->addGet(
                     sprintf(
@@ -317,48 +306,6 @@ class HeTang
             $multiClient2->start();
             system_log(sprintf('前%d个请求已完成', $this->concurrentNum));
             system_log(sprintf('下载耗时：%s', self::formatTimeInterval($dts, time())));
-
-            // 压缩已下载的文件
-            system_log('开始压缩已下载的Dat文件');
-            $compStartTime = time();
-            foreach ($compTasks as $task) {
-                list($dir, $layoutNum) = explode('@', $task);
-                $nameRegex = sprintf('/(?:%s_\d+|%sn)\.dat/i', $layoutNum, $layoutNum);
-                $files = self::lsFiles($dir, $nameRegex);
-
-                try {
-                    $zipFile = sprintf('%s%s.zip', $dir, $layoutNum);
-                    $zip = new ZipArchive();
-                    if ($zip->open($zipFile, ZIPARCHIVE::CREATE) !== true) {
-                        throw new \Exception(sprintf('创建压缩文件失败：%s', $zipFile));
-                    }
-
-                    foreach ($files as $file) {
-                        $zip->addFile($file, basename($file));
-                    }
-                    $zip->close();
-
-                    // 执行$zip->close()才是真正压缩过程，故只能在这之后删除被压缩的文件，否则找不到要被压缩的文件
-                    foreach ($files as $file) {
-                        if (file_exists($file)) {
-                            if (unlink($file)) {
-                                system_log(sprintf('成功删除已压缩文件：%s', $file));
-                            } else {
-                                system_log(sprintf('删除文件失败：%s', $file));
-                            }
-                        } else {
-                            system_log(sprintf('文件不存在，无法删除：%s', $file));
-                        }
-                    }
-                    system_log(sprintf('成功生成压缩文件：%s', $zipFile));
-                } catch (\Exception $e) {
-                    if (isset($zip) && $zip instanceof ZipArchive) {
-                        $zip->close();
-                    }
-                    system_log(sprintf('尝试压缩出错：%s', $e->getMessage()));
-                }
-            }
-            system_log(sprintf('完成一批压缩任务，共耗时%s', self::formatTimeInterval($compStartTime, time())));
         }
 
         system_log(sprintf('所有文件下载完成，下载过程共耗时%s', self::formatTimeInterval($downloadStartTime, time())));
