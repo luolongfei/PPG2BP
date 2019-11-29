@@ -5,7 +5,8 @@
     "ext-curl": "*",
     "aws/aws-sdk-php": "^3.121",
     "ext-zip": "*",
-    "vlucas/phpdotenv": "^3.6"
+    "vlucas/phpdotenv": "^3.6",
+    "kevinlebrun/colors.php": "^1.0"
   },
   "license": "MIT",
   "authors": [
