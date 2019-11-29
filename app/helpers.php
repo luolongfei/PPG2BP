@@ -111,7 +111,7 @@ if (!function_exists('error_system_log')) {
      */
     function error_system_log($content, array $response = [], $fileName = '')
     {
-        $content = sprintf('<bg_light_red><white>ERROR</white></bg_light_red> <light_red>%s</light_red>', $content);
+        $content = sprintf('<bg_red><white>ERROR</white></bg_red> <light_red>%s</light_red>', $content);
         system_log($content, $response, $fileName);
     }
 }
@@ -126,7 +126,7 @@ if (!function_exists('notice_system_log')) {
      */
     function notice_system_log($content, array $response = [], $fileName = '')
     {
-        $content = sprintf('<bg_light_blue><white>NOTICE</white></bg_light_blue> <light_blue>%s</light_blue>', $content);
+        $content = sprintf('<bg_blue><white>NOTICE</white></bg_blue> <light_blue>%s</light_blue>', $content);
         system_log($content, $response, $fileName);
     }
 }
@@ -141,7 +141,7 @@ if (!function_exists('warning_system_log')) {
      */
     function warning_system_log($content, array $response = [], $fileName = '')
     {
-        $content = sprintf('<bg_yellow><white>WARNING</white></bg_yellow> <light_yellow>%s</light_yellow>', $content);
+        $content = sprintf('<bg_magenta><white>WARNING</white></bg_magenta> <light_magenta>%s</light_magenta>', $content);
         system_log($content, $response, $fileName);
     }
 }
@@ -156,7 +156,7 @@ if (!function_exists('info_system_log')) {
      */
     function info_system_log($content, array $response = [], $fileName = '')
     {
-        $content = sprintf('<bg_light_green><white>INFO</white></bg_light_green> <light_green>%s</light_green>', $content);
+        $content = sprintf('<bg_green><white>INFO</white></bg_green> <light_green>%s</light_green>', $content);
         system_log($content, $response, $fileName);
     }
 }

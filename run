@@ -310,7 +310,7 @@ FLL;
                 foreach ($files as $file) {
                     $filename = sprintf('%s%s.csv', $path, $file);
                     if (file_exists($filename) && filesize($filename)) { // 防止重复下载
-                        warning_system_log(sprintf('检测到已存在文件，将不重复下载：%s', $filename));
+                        notice_system_log(sprintf('检测到已存在文件，将不重复下载：%s', $filename));
                         continue;
                     }
 
@@ -331,9 +331,9 @@ FLL;
                             $fileSize = floor(filesize($filename) / 1024);
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
                                 unlink($filename);
-                                warning_system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s (<red>%skb</red><yellow>)</yellow>', $filename, $fileSize));
+                                warning_system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
                             } else {
-                                info_system_log(sprintf('成功执行下载命令：%s (<red>%skb</red><green>)</green>', $cmd, $fileSize));
+                                info_system_log(sprintf('成功执行下载命令：%s <reset>(<red>%skb</red>)</reset>', $cmd, $fileSize));
                             }
                         } else {
                             error_system_log(sprintf('未知错误，文件下载不成功：%s', $filename));
