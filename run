@@ -91,7 +91,7 @@ Params:
 -cn: <int> 最大请求并发数
 -cdn: <int> 下载病人数据的最大并发数
 -sst: <int> 信号开始时间，单位（秒）
--sst: <int> 信号结束时间，单位（秒）
+-set: <int> 信号结束时间，单位（秒）
 -h: 显示说明
 
 Example: 
