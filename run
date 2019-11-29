@@ -95,7 +95,7 @@ Params:
 -h: 显示说明
 
 Example: 
-$ php run --sst=120 --set=150 --cdn=10
+$ php run -sst=120 -set=150 -cdn=10
 
 FLL;
             echo $doc;
@@ -103,10 +103,10 @@ FLL;
         }
 
         $this->bpType = $this->getArgv('bt', 'ABP');
-        $this->concurrentNum = $this->getArgv('cn', 500);
-        $this->concurrentDownloadNum = $this->getArgv('cdn', 10);
-        $this->signalStartTime = $this->getArgv('sst', 1800);
-        $this->signalEndTime = $this->getArgv('set', 1860);
+        $this->concurrentNum = (int)$this->getArgv('cn', 500);
+        $this->concurrentDownloadNum = (int)$this->getArgv('cdn', 10);
+        $this->signalStartTime = (int)$this->getArgv('sst', 120);
+        $this->signalEndTime = (int)$this->getArgv('set', 150);
     }
 
     /**
@@ -314,6 +314,18 @@ FLL;
                         continue;
                     }
 
+                    $lockedFileName = sprintf(
+                        '%s%s_sst_%d_set_%d.lock',
+                        $path,
+                        $file,
+                        $this->signalStartTime,
+                        $this->signalEndTime
+                    );
+                    if (file_exists($lockedFileName)) {
+                        warning_system_log(sprintf('发现无PPG数据的文件，已被忽略'));
+                        continue;
+                    }
+
                     // 执行命令下载
                     $cmd = sprintf(
                         'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %s -t %s -v -pS -s 1 > %s',
@@ -330,8 +342,8 @@ FLL;
                         if (file_exists($filename)) {
                             $fileSize = floor(filesize($filename) / 1024);
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
-                                unlink($filename);
-                                warning_system_log(sprintf('发现疑似无信号数据的文件，已被删除：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
+                                rename($filename, $lockedFileName);
+                                warning_system_log(sprintf('发现疑似无PPG数据的文件，已被锁定，下次将忽略：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
                             } else {
                                 info_system_log(sprintf('成功执行下载命令：%s <reset>(<red>%skb</red>)</reset>', $cmd, $fileSize));
                             }
