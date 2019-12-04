@@ -54,7 +54,7 @@ class HeTang
     /**
      * @var string 血压类型 ABP or NBP
      */
-    public $bpType;
+    public $bt;
 
     /**
      * @var int 最大请求并发数
@@ -75,6 +75,11 @@ class HeTang
      * @var int 信号结束时间
      */
     public $signalEndTime;
+
+    /**
+     * @var string
+     */
+    public $bpRegex = '/%s\s(?:Sys|Dias)/i';
 
     /**
      * @var array 所有命令行传参
@@ -102,7 +107,8 @@ FLL;
             exit(0);
         }
 
-        $this->bpType = $this->getArgv('bt', 'ABP');
+        $this->bt = $this->getArgv('bt', 'ABP');
+        $this->bpRegex = sprintf($this->bpRegex, $this->bt);
         $this->concurrentNum = (int)$this->getArgv('cn', 500);
         $this->concurrentDownloadNum = (int)$this->getArgv('cdn', 10);
         $this->signalStartTime = (int)$this->getArgv('sst', 120);
@@ -126,7 +132,7 @@ FLL;
 
         // 既有血压数据又有PPG数据的病人
         $result = [];
-        $indexCache = sprintf('ppg_%s.index', $this->bpType);
+        $indexCache = sprintf('ppg_%s.index', $this->bt);
         if (file_exists($indexCache)) { // 从缓存读取
             $result = json_decode(file_get_contents($indexCache), true);
         } else {
@@ -142,7 +148,7 @@ FLL;
                 $rawResponse = $instance->rawResponse;
                 $url = $instance->url;
                 $numericName = preg_match('/\/matched\/(?P<numeric_name>.*?)n\.hea/i', $url, $m) ? $m['numeric_name'] : '';
-                if (stripos($rawResponse, $this->bpType) !== false) {
+                if (preg_match($this->bpRegex, $rawResponse)) {
                     $existBP[] = $numericName; // 保存去掉n后的名称
                     notice_system_log(sprintf('发现含有血压数据的画面：%s', $url));
                 } else {
@@ -328,7 +334,7 @@ FLL;
 
                     // 执行命令下载
                     $cmd = sprintf(
-                        'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %s -t %s -v -pS -s 1 > %s',
+                        'rdsamp -r mimic3wdb/matched/%s%s -c -H -f %s -t %s -v -pS -s PLETH ABP > %s',
                         $people,
                         $file,
                         $this->signalStartTime,
@@ -343,7 +349,7 @@ FLL;
                             $fileSize = floor(filesize($filename) / 1024);
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
                                 rename($filename, $lockedFileName);
-                                warning_system_log(sprintf('发现疑似无PPG数据的文件，已被锁定，下次将忽略：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
+                                system_log(sprintf('发现疑似无PPG数据的文件，已被锁定，下次将忽略：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
                             } else {
                                 info_system_log(sprintf('成功执行下载命令：%s <reset>(<red>%skb</red>)</reset>', $cmd, $fileSize));
                             }
