@@ -328,7 +328,7 @@ FLL;
                         $this->signalEndTime
                     );
                     if (file_exists($lockedFileName)) {
-                        warning_system_log(sprintf('发现无PPG数据的文件，已被忽略'));
+                        warning_system_log(sprintf('发现无PPG或ABP数据的文件，已被忽略'));
                         continue;
                     }
 
@@ -349,7 +349,7 @@ FLL;
                             $fileSize = floor(filesize($filename) / 1024);
                             if ($fileSize < 16) { // 小于16kb的文件视作无效
                                 rename($filename, $lockedFileName);
-                                system_log(sprintf('发现疑似无PPG数据的文件，已被锁定，下次将忽略：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
+                                system_log(sprintf('发现疑似无PPG或ABP数据的文件，已被锁定，下次将忽略：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
                             } else {
                                 info_system_log(sprintf('成功执行下载命令：%s <reset>(<red>%skb</red>)</reset>', $cmd, $fileSize));
                             }
@@ -365,7 +365,7 @@ FLL;
                 if (file_exists($nDatFileName) && filesize($nDatFileName)) {
                     warning_system_log(sprintf('检测到血压数值文件已存在，将不重复下载：%s', $nDatFileName));
                 } else {
-                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $nDatFile), $nDatFileName);
+//                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $nDatFile), $nDatFileName);
                 }
             } else {
                 error_system_log(sprintf('未匹配到任何dat文件名：%s', $peopleUrl));
