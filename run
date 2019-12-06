@@ -98,6 +98,7 @@ Params:
 -sst: <int> 信号开始时间，单位（秒）
 -set: <int> 信号结束时间，单位（秒）
 -h: 显示说明
+-s: 统计同时具有PPG与ABP数据的病人个数
 
 Example: 
 $ php run -sst=120 -set=150 -cdn=10
@@ -105,6 +106,8 @@ $ php run -sst=120 -set=150 -cdn=10
 FLL;
             echo $doc;
             exit(0);
+        } else if ($this->getArgv('stat') || $this->getArgv('s')) {
+            $this->stat();
         }
 
         $this->bt = $this->getArgv('bt', 'ABP');
@@ -409,14 +412,11 @@ FLL;
     }
 
     /**
-     * 列出目录下匹配的文件，如果不指定匹配正则则列出目录下所有文件
-     *
      * @param string $directory
-     * @param string $nameRegex 匹配文件名的正则
      *
      * @return array
      */
-    public static function lsFiles(string $directory, string $nameRegex = '')
+    public static function lsFiles(string $directory)
     {
         $directory = realpath($directory) . DS;
         if (!is_dir($directory)) {
@@ -427,15 +427,40 @@ FLL;
         $d = dir($directory);
         while (($filename = $d->read()) !== false) {
             $file = $directory . $filename;
-            if ($filename !== '.' && $filename !== '..' && !is_dir($file)) {
-                if (!$nameRegex || preg_match($nameRegex, $filename)) {
-                    $files[] = $file;
-                }
+            if ($filename !== '.' && $filename !== '..') {
+                $files[] = $file;
             }
         }
         $d->close();
 
         return $files;
+    }
+
+    /**
+     * 统计可用病人个数
+     */
+    public function stat()
+    {
+        system_log('统计合格病人个数中...');
+
+        $patientNum = 0;
+        $items = self::lsFiles('data');
+        foreach ($items as $item) {
+            $people = self::lsFiles($item);
+            foreach ($people as $p) {
+                $files = self::lsFiles($p);
+                foreach ($files as $f) {
+                    if (preg_match('/.*?\.csv/i', $f)) {
+                        $patientNum++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        info_system_log(sprintf('同时具有PPG与ABP数据的病人个数为：<red>%d</red>', $patientNum));
+
+        exit(0);
     }
 
     /**
