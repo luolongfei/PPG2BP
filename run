@@ -101,7 +101,7 @@ Params:
 -s: 统计同时具有PPG与ABP数据的病人个数
 
 Example: 
-$ php run -sst=120 -set=150 -cdn=10
+$ php run -sst=150 -set=750 -cdn=10
 
 FLL;
             echo $doc;
@@ -114,8 +114,8 @@ FLL;
         $this->bpRegex = sprintf($this->bpRegex, $this->bt);
         $this->concurrentNum = (int)$this->getArgv('cn', 500);
         $this->concurrentDownloadNum = (int)$this->getArgv('cdn', 10);
-        $this->signalStartTime = (int)$this->getArgv('sst', 120);
-        $this->signalEndTime = (int)$this->getArgv('set', 150);
+        $this->signalStartTime = (int)$this->getArgv('sst', 150);
+        $this->signalEndTime = (int)$this->getArgv('set', 750);
     }
 
     /**
