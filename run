@@ -323,6 +323,13 @@ FLL;
                         continue;
                     }
 
+                    $lowFile = $filename . '.low';
+                    $jsonFile = $filename . '.json';
+                    if (file_exists($lowFile) || file_exists($jsonFile)) {
+                        notice_system_log(sprintf('已被python处理，将被忽略：%s', $filename));
+                        continue;
+                    }
+
                     $lockedFileName = sprintf(
                         '%s%s_sst_%d_set_%d.lock',
                         $path,
