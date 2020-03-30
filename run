@@ -101,7 +101,7 @@ Params:
 -s: 统计同时具有PPG与ABP数据的病人个数
 
 Example: 
-$ php run -sst=150 -set=750 -cdn=10
+$ php run -sst=250 -set=850 -cdn=10
 
 FLL;
             echo $doc;
@@ -114,8 +114,8 @@ FLL;
         $this->bpRegex = sprintf($this->bpRegex, $this->bt);
         $this->concurrentNum = (int)$this->getArgv('cn', 500);
         $this->concurrentDownloadNum = (int)$this->getArgv('cdn', 10);
-        $this->signalStartTime = (int)$this->getArgv('sst', 150);
-        $this->signalEndTime = (int)$this->getArgv('set', 750);
+        $this->signalStartTime = (int)$this->getArgv('sst', 250);
+        $this->signalEndTime = (int)$this->getArgv('set', 850);
     }
 
     /**
@@ -285,7 +285,7 @@ FLL;
          * 由multiClient2发起下载数据动作
          */
         $multiClient2->setOpt(CURLOPT_ENCODING, ''); // 发送所有支持的编码类型
-        $multiClient2->setTimeout(0); // 下载的文件过大时会消耗过多的时间
+        $multiClient2->setTimeout(600); // 下载的文件过大时会消耗过多的时间，但也要防止无限等待
         $multiClient2->success(function ($instance) {
             info_system_log(sprintf('成功下载文件：%s', $instance->url));
 
