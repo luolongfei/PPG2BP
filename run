@@ -350,6 +350,8 @@ FLL;
 
                 // 是否达到限制尺寸条件
                 if ($this->limitSize($path)) {
+                    warning_system_log(sprintf('该 %s 病人数据已足够，将跳过...', $people));
+
                     return true;
                 }
 
