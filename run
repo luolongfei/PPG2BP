@@ -350,7 +350,7 @@ FLL;
 
                 // 是否达到限制尺寸条件
                 if ($this->limitSize($path)) {
-                    warning_system_log(sprintf('该 %s 病人数据已足够，将跳过...', $people));
+                    notice_system_log(sprintf('该 %s 病人数据已足够，将跳过...', $people));
 
                     return true;
                 }
@@ -380,6 +380,12 @@ FLL;
                     if (file_exists($lockedFileName)) {
                         warning_system_log(sprintf('发现无PPG或ABP数据的文件，已被忽略'));
                         continue;
+                    }
+
+                    // 下载途中检查数据是否已足够
+                    if ($this->limitSize($path)) {
+                        notice_system_log(sprintf('下载中途发现该 %s 病人数据已足够，已跳出循环', $people));
+                        break;
                     }
 
                     // 执行命令下载
