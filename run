@@ -86,6 +86,11 @@ class HeTang
      */
     public $allArgv = [];
 
+    /**
+     * @var int 每个病人数据最长持续时间 单位：min
+     */
+    public $maxDuration;
+
     public function __construct()
     {
         if ($this->getArgv('help') || $this->getArgv('h')) {
@@ -116,6 +121,34 @@ FLL;
         $this->concurrentDownloadNum = (int)$this->getArgv('cdn', 10);
         $this->signalStartTime = (int)$this->getArgv('sst', 250);
         $this->signalEndTime = (int)$this->getArgv('set', 850);
+
+        $this->maxDuration = (int)$this->getArgv('md', 60);
+    }
+
+    /**
+     * @param $directory
+     *
+     * @return array
+     * @throws Exception
+     */
+    protected function lsFiles($directory)
+    {
+        $directory = realpath($directory);
+
+        if (!is_dir($directory)) {
+            throw new \Exception(sprintf('%s不是文件夹', $directory));
+        }
+
+        $files = [];
+        $d = dir($directory);
+        while (($file = $d->read()) !== false) {
+            if ($file !== '.' && $file !== '..') {
+                $files[] = $directory . DS . $file;
+            }
+        }
+        $d->close();
+
+        return $files;
     }
 
     /**
@@ -315,6 +348,11 @@ FLL;
                     chmod($path, 0777);
                 }
 
+                // 是否达到限制尺寸条件
+                if ($this->limitSize($path)) {
+                    return true;
+                }
+
                 $files = $d['datFile'];
                 foreach ($files as $file) {
                     $filename = sprintf('%s%s.csv', $path, $file);
@@ -419,43 +457,20 @@ FLL;
     }
 
     /**
-     * @param string $directory
-     *
-     * @return array
-     */
-    public static function lsFiles(string $directory)
-    {
-        $directory = realpath($directory) . DS;
-        if (!is_dir($directory)) {
-            return [];
-        }
-
-        $files = [];
-        $d = dir($directory);
-        while (($filename = $d->read()) !== false) {
-            $file = $directory . $filename;
-            if ($filename !== '.' && $filename !== '..') {
-                $files[] = $file;
-            }
-        }
-        $d->close();
-
-        return $files;
-    }
-
-    /**
      * 统计可用病人个数
+     *
+     * @throws Exception
      */
     public function stat()
     {
         system_log('统计合格病人个数中...');
 
         $patientNum = 0;
-        $items = self::lsFiles('data');
+        $items = $this->lsFiles('data');
         foreach ($items as $item) {
-            $people = self::lsFiles($item);
+            $people = $this->lsFiles($item);
             foreach ($people as $p) {
-                $files = self::lsFiles($p);
+                $files = $this->lsFiles($p);
                 foreach ($files as $f) {
                     if (preg_match('/.*?\.csv/i', $f)) {
                         $patientNum++;
@@ -583,6 +598,32 @@ FLL;
         }
 
         return self::$multiClient;
+    }
+
+    /**
+     * 是否需要限制尺寸
+     *
+     * @param $dir
+     *
+     * @return bool
+     * @throws Exception
+     */
+    public function limitSize($dir)
+    {
+        $size = 0;
+        $files = $this->lsFiles($dir);
+        foreach ($files as $file) {
+            if (preg_match('/\.csv$/i', $file)) {
+                $fileSize = intval(filesize($file) / 1024); // kb
+                $size += $fileSize;
+            }
+        }
+
+        if ($size >= ($this->maxDuration / 10 * 1400)) {
+            return true;
+        }
+
+        return false;
     }
 }
 
