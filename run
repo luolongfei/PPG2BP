@@ -350,7 +350,7 @@ FLL;
 
                 // 是否达到限制尺寸条件
                 if ($this->limitSize($path)) {
-                    notice_system_log(sprintf('该 %s 病人数据已足够，将跳过...', $people));
+                    warning_system_log(sprintf('该 %s 病人数据已足够，将跳过', $people));
 
                     return true;
                 }
@@ -360,13 +360,6 @@ FLL;
                     $filename = sprintf('%s%s.csv', $path, $file);
                     if (file_exists($filename) && filesize($filename)) { // 防止重复下载
                         notice_system_log(sprintf('检测到已存在文件，将不重复下载：%s', $filename));
-                        continue;
-                    }
-
-                    $lowFile = $filename . '.low';
-                    $jsonFile = $filename . '.json';
-                    if (file_exists($lowFile) || file_exists($jsonFile)) {
-                        notice_system_log(sprintf('已被python处理，将被忽略：%s', $filename));
                         continue;
                     }
 
@@ -397,7 +390,7 @@ FLL;
                         $this->signalEndTime,
                         $filename
                     );
-                    $error = exec($cmd);
+                    $error = exec($cmd); // TODO 解决网络问题导致 init: can't open header for record mimic3wdb/matched/p02/p026868/3039150_0272
                     if ($error) {
                         error_system_log(sprintf('执行命令出错：%s (%s)', $error, $cmd));
                     } else {
@@ -416,13 +409,13 @@ FLL;
                 }
 
                 // 单独下载血压数值文件
-                $nDatFile = sprintf('%sn.dat', $layoutNum);
+                /*$nDatFile = sprintf('%sn.dat', $layoutNum);
                 $nDatFileName = sprintf('%s%s', $path, $nDatFile);
                 if (file_exists($nDatFileName) && filesize($nDatFileName)) {
                     warning_system_log(sprintf('检测到血压数值文件已存在，将不重复下载：%s', $nDatFileName));
                 } else {
 //                    $multiClient2->addDownload(sprintf('%s%s', $peopleUrl, $nDatFile), $nDatFileName);
-                }
+                }*/
             } else {
                 error_system_log(sprintf('未匹配到任何dat文件名：%s', $peopleUrl));
             }
