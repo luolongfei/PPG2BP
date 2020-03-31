@@ -106,7 +106,7 @@ Params:
 -s: 统计同时具有PPG与ABP数据的病人个数
 
 Example: 
-$ php run -sst=250 -set=850 -cdn=10
+$ php run -sst=60 -set=660 -cdn=10
 
 FLL;
             echo $doc;
@@ -119,8 +119,8 @@ FLL;
         $this->bpRegex = sprintf($this->bpRegex, $this->bt);
         $this->concurrentNum = (int)$this->getArgv('cn', 500);
         $this->concurrentDownloadNum = (int)$this->getArgv('cdn', 10);
-        $this->signalStartTime = (int)$this->getArgv('sst', 250);
-        $this->signalEndTime = (int)$this->getArgv('set', 850);
+        $this->signalStartTime = (int)$this->getArgv('sst', 60);
+        $this->signalEndTime = (int)$this->getArgv('set', 660);
 
         $this->maxDuration = (int)$this->getArgv('md', 60);
     }
@@ -396,7 +396,7 @@ FLL;
                     } else {
                         if (file_exists($filename)) {
                             $fileSize = floor(filesize($filename) / 1024);
-                            if ($fileSize < 16) { // 小于16kb的文件视作无效
+                            if ($fileSize < 32) { // 小于 32kb 的文件数据约小于1分钟，视作无效
                                 rename($filename, $lockedFileName);
                                 system_log(sprintf('发现疑似无PPG或ABP数据的文件，已被锁定，下次将忽略：%s <reset>(<red>%skb</red>)</reset>', $filename, $fileSize));
                             } else {
